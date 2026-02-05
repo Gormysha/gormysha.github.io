@@ -674,6 +674,7 @@ input[type=number]::-webkit-inner-spin-button {
     border-radius: 6px;
     border: 1px #121212 solid;
     user-select: none;
+    overflow: hidden;
 }
 
 .worldSizeDisplay {
@@ -698,4 +699,5 @@ input[type=number]::-webkit-inner-spin-button {
 
 #terr_editor {
     position: relative;
+
 }
