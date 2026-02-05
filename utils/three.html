@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+        }
+    </style>
+    <title>tset</title>
+</head>
+
+<body>
+    <canvas id="display" width="400" height="400"></canvas>
+</body>
+<script>
+    class VMath {
+        static coalesce(v = {}) {
+            return {
+                x: isNaN(v.x) ? 0 : v.x,
+                y: isNaN(v.y) ? 0 : v.y,
+                z: isNaN(v.z) ? 0 : v.z
+            }
+        }
+        static isWithinVolume(from, to, vector) {
+            return [`x`, `y`, `z`].every(a => vector[a] >= from[a] & vector[a] <= to[a]);
+        }
+        static toRGB(v) {
+            return {
+                red: v.x,
+                green: v.y,
+                blue: v.z
+            }
+        }
+        static subtract(a, b) {
+            a = this.coalesce(a);
+            b = this.coalesce(b);
+            return {
+                x: a.x - b.x,
+                y: a.y - b.y,
+                z: a.z - b.z
+            }
+        }
+        static add(a, b, ...other) {
+            a = this.coalesce(a);
+            b = this.coalesce(b);
+            let result = {
+                x: a.x + b.x,
+                y: a.y + b.y,
+                z: a.z + b.z
+            }
+            if (other) other.forEach(v => result = VMath.add(result, v));
+            return result;
+        }
+        static multiply(a, b) {
+            a = this.coalesce(a);
+            b = this.coalesce(b);
+            return {
+                x: a.x * b.x,
+                y: a.y * b.y,
+                z: a.z * b.z
+            }
+        }
+        static aligned(axis, length) {
+            const v = { x: 0, y: 0, z: 0 };
+            v[axis] = length;
+            return v;
+        }
+        static styled(style) {
+            return {
+                from: {
+                    x: style.left,
+                    y: style.top
+                },
+                to: {
+                    x: style.right,
+                    y: style.bottom
+                },
+                delta: {
+                    x: style.right + style.left,
+                    y: style.top + style.bottom
+                }
+            }
+        }
+        static norm(a) {
+            return Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2)
+        }
+        static distance(a, b) {
+            return VMath.norm(VMath.subtract(a, b));
+        }
+        static scale(v, a) {
+            return {
+                x: a * v.x,
+                y: a * v.y,
+                z: a * v.z
+            }
+        }
+        static toObjective(a, b) {
+            return {
+                origin: {
+                    x: Math.min(a.x, b.x),
+                    y: Math.min(a.y, b.y),
+                    z: Math.min(a.z, b.z)
+                },
+                size: {
+                    x: Math.abs(a.x - b.x),
+                    y: Math.abs(a.y - b.y),
+                    z: Math.abs(a.z - b.z)
+                }
+            }
+        }
+        static dot(a, b) {
+            return a.x * b.x + a.y * b.y + a.z * b.z;
+        }
+        static cross(a, b) {
+            return {
+                x: a.y * b.z - a.z * b.y,
+                y: a.z * b.x - a.x * b.z,
+                z: a.x * b.y - a.y * b.z
+            }
+        }
+        static normalize(v) {
+            return VMath.scale(v, 1 / VMath.norm(v));
+        }
+        static equals(a, b) {
+            if (typeof a !== `object` || typeof b !== `object`) return false;
+            return Object.entries(a).every(([k, v]) => b[k] === v);
+        }
+        static floor(v) {
+            return {
+                x: Math.floor(v.x),
+                y: Math.floor(v.y),
+                z: Math.floor(v.z)
+            }
+        }
+        static ceil(v) {
+            return {
+                x: Math.ceil(v.x),
+                y: Math.ceil(v.y),
+                z: Math.ceil(v.z)
+            }
+        }
+        static round(v) {
+            return {
+                x: Math.round(v.x),
+                y: Math.round(v.y),
+                z: Math.round(v.z)
+            }
+        }
+    }
+
+    function setPixel(x, y) {
+        const canvas = document.getElementById(`display`);
+        const ctx = canvas.getContext("2d");
+        x = Math.floor(canvas.width/2 + x);
+        y = Math.floor(canvas.height/2 - y);
+        ctx.fillStyle = "rgba(" + 0 + "," + 0 + "," + 0 + ",1.0)";
+        ctx.fillRect(x, y, 1, 1);
+    }
+
+    function degreesToRadians(deg) {
+        return deg * Math.PI / 180;
+    }
+    function rotateVector(v, rot) {
+        let rx = degreesToRadians(rot.x);
+        let ry = degreesToRadians(rot.y);
+        let rz = degreesToRadians(rot.z);
+
+        let x = v.x, y = v.y, z = v.z;
+
+        // Rotate around Z
+        let cz = Math.cos(rz), sz = Math.sin(rz);
+        [x, y] = [x * cz - y * sz, x * sz + y * cz];
+
+        // Rotate around Y
+        let cy = Math.cos(ry), sy = Math.sin(ry);
+        [x, z] = [x * cy + -z * sy, x * sy + z * cy];
+
+        // Rotate around X
+        let cx = Math.cos(rx), sx = Math.sin(rx);
+        [y, z] = [y * cx + -z * sx, y * sx + z * cx];
+
+        return { x, y, z };
+    }
+    function drawLine(p1, p2) {
+        let d = { x: p2.x - p1.x, y: p2.y - p1.y };
+        let a = Math.abs(d.x) > Math.abs(d.y) ? `x` : `y`;
+        let c = a === `x` ? `y` : `x`;
+        if (d[a] === 0) {
+            setPixel(p1.x, p1.y);
+            return;
+        }
+        for (let i = 0; i < Math.abs(d[a]); i++) {
+            const p = {};
+            p[a] = p1[a] + i * Math.sign(d[a]);
+            p[c] = p1[c] + d[c] * i / Math.abs(d[a]);
+            setPixel(p.x, p.y);
+        }
+    }
+
+    function perspectiveProjection(point, camera) {
+        let localPos = rotateVector(VMath.subtract(point, camera.origin), camera.rotation);
+        let factor = (camera.offset??1)/(localPos.z !== 0 ? localPos.z : Math.sign(localPos.z) * 0.01);
+        return {x:localPos.x*factor, y:localPos.y*factor};
+    }
+
+    let [x0, y0] = [1, 1]
+    let camera = {
+        offset: 4,
+        origin: {
+            x: 0,
+            y: 10,
+            z: 2
+        },
+        rotation: {
+            x: 90,
+            y: 0,
+            z: 3
+        }
+    }
+    for (let i = 0; i < 4; i++) {
+        let [x1, y1] = [1-(i>0&&i<3)*2, -1+2*Math.floor(i/2)];
+        let [p1, p2] = [perspectiveProjection({x: x0, y:y0, z: 0}, camera), perspectiveProjection({x: x1, y:y1, z: 0}, camera)]
+        drawLine(VMath.scale(p1, 100), VMath.scale(p2, 100));
+        x0=x1;
+        y0=y1;
+    }
+</script>
+
+</html>

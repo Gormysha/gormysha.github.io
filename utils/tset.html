@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+        }
+    </style>
+    <title>tset</title>
+</head>
+
+<body>
+    <canvas id="time" width="400" height="400"></canvas>
+    <canvas id="fq" width="400" height="400"></canvas>
+</body>
+<script>
+    class Complex {
+        constructor(real = 0, imag = 0) {
+            this.real = real;
+            this.imag = imag;
+        }
+        add(other) {
+            return new Complex(this.real + other.real, this.imag + other.imag);
+        }
+        multiply(other) {
+            return new Complex(this.real * other.real - this.imag * other.imag, this.real * other.imag + this.imag * other.real);
+        }
+        magnitude() {
+            return Math.sqrt(this.real**2+this.imag**2)
+        }
+    }
+
+    function transform(f, T) {
+        return (p) => {
+            let result = new Complex();
+            for (let i = 0; i < 1024; i++) {
+                let t = T * i / 1024;
+                let sample = new Complex(f(t));
+                let angle = Math.PI * 2 * p * t;
+                let point = new Complex(Math.cos(angle), Math.sin(angle));
+                result = result.add(sample.multiply(point));
+            }
+            return result.magnitude();
+        }
+    }
+
+    function plot(f, T, id) {
+        const canvas = document.getElementById(id);
+        const ctx = canvas.getContext("2d");
+
+        const samples = Array.from({length: 400}, (_, i) => f(T*i/400));
+        const range = [Math.min(...samples), Math.max(...samples)];
+        ctx.beginPath();
+        ctx.moveTo(0, 400);
+        for (let x=0; x<400; x++) ctx.lineTo(x, 400*(1-(samples[x]-range[0])/(range[1]-range[0])));
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "red";
+        ctx.stroke();
+    }
+
+    let f = (x) => Math.sin(x*Math.PI*2) + Math.cos(8*x*Math.PI*2);
+    let g = transform(f, 40);
+    plot(f, Math.PI*4, "time");
+    plot(g, 10, "fq");
+    console.log(g(2), g(1))
+</script>
+
+</html>
